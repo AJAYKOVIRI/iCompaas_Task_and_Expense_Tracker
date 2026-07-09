@@ -8,6 +8,7 @@ const Register = () => {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState('user'); // Default to 'user'
   const [error, setError] = useState('');
@@ -18,8 +19,12 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!username || !email || !password) {
+    if (!username || !email || !password || !confirmPassword) {
       setError('Please fill in all fields.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
       return;
     }
 
@@ -45,7 +50,15 @@ const Register = () => {
   };
 
   return (
-    <div className="auth-wrapper">
+    <>
+      {loading && (
+        <div className="loading-overlay">
+          <LoadingSpinner size="large" />
+          <h2 style={{ marginTop: '1.5rem', color: '#ffffff', fontWeight: '600' }}>Registering Account</h2>
+          <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>Please wait while we set up your workspace...</p>
+        </div>
+      )}
+      <div className="auth-wrapper">
       <div className="auth-card">
         <div className="auth-header">
           <img src="/logo.png" alt="iCompaas Logo" style={{ height: '64px', marginBottom: '1rem', objectFit: 'contain' }} />
@@ -114,6 +127,20 @@ const Register = () => {
           </div>
 
           <div className="form-group">
+            <label htmlFor="confirmPassword">Confirm Password</label>
+            <input
+              type={showPassword ? "text" : "password"}
+              id="confirmPassword"
+              className="form-control"
+              placeholder="••••••••"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              disabled={loading}
+              required
+            />
+          </div>
+
+          <div className="form-group">
             <label htmlFor="role">Role (Testing Feature)</label>
             <select
               id="role"
@@ -148,6 +175,7 @@ const Register = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 
