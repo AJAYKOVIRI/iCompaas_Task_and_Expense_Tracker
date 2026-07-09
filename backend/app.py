@@ -56,6 +56,25 @@ with app.app_context():
 
 # --- Utility Helpers ---
 
+def save_and_print_otp(user, otp, type_str):
+    import os
+    # Print to backend console log
+    print(f"\n=======================================================")
+    print(f"[OTP EMAIL SIMULATION] To: {user.email}")
+    print(f"Subject: {type_str}")
+    print(f"Body: Hello {user.username}, your verification code is: {otp}")
+    print(f"=======================================================\n")
+    
+    # Save the raw OTP to a file in the root workspace directory for easy retrieval
+    try:
+        root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        otp_file_path = os.path.join(root_dir, 'latest_otp.txt')
+        with open(otp_file_path, 'w') as f:
+            f.write(otp)
+        print(f"Saved latest OTP to {otp_file_path}")
+    except Exception as e:
+        print(f"Error writing OTP to file: {e}")
+
 def generate_token(user_id):
     import jwt
     payload = {
@@ -193,11 +212,7 @@ def register():
     db.session.commit()
 
     # Simulate email sending
-    print(f"\n=======================================================")
-    print(f"[OTP EMAIL SIMULATION] To: {user.email}")
-    print(f"Subject: Verify your iCompaas account")
-    print(f"Body: Hello {user.username}, your registration verification code is: {otp}")
-    print(f"=======================================================\n")
+    save_and_print_otp(user, otp, "Verify your iCompaas account")
 
     return jsonify({
         'message': 'Verification OTP sent to email.',
@@ -223,11 +238,7 @@ def login():
         user.otp_expiry = datetime.utcnow() + timedelta(minutes=10)
         db.session.commit()
 
-        print(f"\n=======================================================")
-        print(f"[OTP EMAIL SIMULATION] To: {user.email}")
-        print(f"Subject: Verify your iCompaas account")
-        print(f"Body: Your registration verification code is: {otp}")
-        print(f"=======================================================\n")
+        save_and_print_otp(user, otp, "Verify your iCompaas account")
 
         return jsonify({
             'message': 'Your account email is unverified. Verification OTP sent to your email.',
@@ -243,11 +254,7 @@ def login():
     user.otp_expiry = datetime.utcnow() + timedelta(minutes=10)
     db.session.commit()
 
-    print(f"\n=======================================================")
-    print(f"[OTP EMAIL SIMULATION] To: {user.email}")
-    print(f"Subject: iCompaas Two-Factor Authentication (2FA) OTP")
-    print(f"Body: Hello {user.username}, your 2FA verification code is: {otp}")
-    print(f"=======================================================\n")
+    save_and_print_otp(user, otp, "iCompaas Two-Factor Authentication (2FA) OTP")
 
     return jsonify({
         'message': '2FA OTP sent to email.',
@@ -356,11 +363,7 @@ def resend_otp():
     user.otp_expiry = datetime.utcnow() + timedelta(minutes=10)
     db.session.commit()
 
-    print(f"\n=======================================================")
-    print(f"[OTP EMAIL SIMULATION] To: {user.email}")
-    print(f"Subject: Resend iCompaas Verification Code")
-    print(f"Body: Your verification code is: {otp}")
-    print(f"=======================================================\n")
+    save_and_print_otp(user, otp, "Resend iCompaas Verification Code")
 
     return jsonify({
         'message': 'Verification code resent successfully.',
