@@ -160,16 +160,20 @@ def register():
             user.username = data['username']
             user.role = data.get('role', 'user')
     else:
-        # Check if username is taken by a verified user
-        existing_username = User.query.filter_by(username=data['username']).first()
-        if existing_username:
-            if existing_username.is_verified:
-                return jsonify({'message': 'Username already exists.'}), 400
-            else:
-                # Delete the unverified user with this username so we don't have constraints conflict
+        user = None
+
+    # Check if username is taken by a verified user
+    existing_username = User.query.filter_by(username=data['username']).first()
+    if existing_username:
+        if existing_username.is_verified:
+            return jsonify({'message': 'Username already exists.'}), 400
+        else:
+            # If it's a different user, delete it so we don't have constraints conflict
+            if not user or user.id != existing_username.id:
                 db.session.delete(existing_username)
                 db.session.commit()
         
+    if not user:
         user = User(
             username=data['username'],
             email=data['email'],
