@@ -23,14 +23,36 @@ db.init_app(app)
 
 with app.app_context():
     db.create_all()
+    # Migration helper to dynamically add columns to existing SQLite database users table if they don't exist
+    try:
+        db.session.execute(db.text("ALTER TABLE users ADD COLUMN otp VARCHAR(10)"))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+    try:
+        db.session.execute(db.text("ALTER TABLE users ADD COLUMN otp_expiry DATETIME"))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+    try:
+        db.session.execute(db.text("ALTER TABLE users ADD COLUMN is_verified BOOLEAN DEFAULT 0"))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
     # Create default admin user if not exists
     admin_user = User.query.filter_by(role='admin').first()
     if not admin_user:
-        admin = User(username='admin', email='admin@tracker.com', role='admin')
+        admin = User(username='admin', email='admin@tracker.com', role='admin', is_verified=True)
         admin.set_password('admin123')
         db.session.add(admin)
         db.session.commit()
         print("Created default admin user (admin / admin123)")
+    else:
+        # Ensure existing admin is verified
+        if not admin_user.is_verified:
+            admin_user.is_verified = True
+            db.session.commit()
 
 # --- Utility Helpers ---
 
@@ -127,41 +149,57 @@ def register():
     if not data or not data.get('username') or not data.get('email') or not data.get('password'):
         return jsonify({'message': 'Username, email, and password are required.'}), 400
     
-    if User.query.filter_by(username=data['username']).first():
-        return jsonify({'message': 'Username already exists.'}), 400
+    # Check if user already exists
+    existing_user = User.query.filter_by(email=data['email']).first()
+    if existing_user:
+        if existing_user.is_verified:
+            return jsonify({'message': 'Email already registered.'}), 400
+        else:
+            # Overwrite unverified user to prevent locking out email/username
+            user = existing_user
+            user.username = data['username']
+            user.role = data.get('role', 'user')
+    else:
+        # Check if username is taken by a verified user
+        existing_username = User.query.filter_by(username=data['username']).first()
+        if existing_username:
+            if existing_username.is_verified:
+                return jsonify({'message': 'Username already exists.'}), 400
+            else:
+                # Delete the unverified user with this username so we don't have constraints conflict
+                db.session.delete(existing_username)
+                db.session.commit()
         
-    if User.query.filter_by(email=data['email']).first():
-        return jsonify({'message': 'Email already registered.'}), 400
+        user = User(
+            username=data['username'],
+            email=data['email'],
+            role=data.get('role', 'user')
+        )
 
-    user = User(
-        username=data['username'],
-        email=data['email'],
-        role=data.get('role', 'user') # Defaults to normal user
-    )
     user.set_password(data['password'])
+    
+    # Generate 6-digit OTP
+    import random
+    otp = f"{random.randint(100000, 999999)}"
+    user.otp = otp
+    user.otp_expiry = datetime.utcnow() + timedelta(minutes=10)
+    user.is_verified = False
+
     db.session.add(user)
     db.session.commit()
 
-    # Create a default workspace for this user automatically to get them started
-    default_ws = Workspace(
-        name=f"{user.username}'s Workspace",
-        description="Auto-generated default workspace",
-        created_by=user.id
-    )
-    db.session.add(default_ws)
-    db.session.commit()
+    # Simulate email sending
+    print(f"\n=======================================================")
+    print(f"[OTP EMAIL SIMULATION] To: {user.email}")
+    print(f"Subject: Verify your iCompaas account")
+    print(f"Body: Hello {user.username}, your registration verification code is: {otp}")
+    print(f"=======================================================\n")
 
-    member_assoc = WorkspaceMember(workspace_id=default_ws.id, user_id=user.id, role='admin')
-    db.session.add(member_assoc)
-    db.session.commit()
-
-    token = generate_token(user.id)
     return jsonify({
-        'message': 'Registration successful.',
-        'token': token,
-        'user': user.to_dict(),
-        'default_workspace_id': default_ws.id
-    }), 201
+        'message': 'Verification OTP sent to email.',
+        'email': user.email,
+        'is_verified': False
+    }), 200
 
 @app.route('/api/auth/login', methods=['POST'])
 def login():
@@ -173,11 +211,156 @@ def login():
     if not user or not user.check_password(data['password']):
         return jsonify({'message': 'Invalid email or password.'}), 401
         
+    if not user.is_verified:
+        # User registered but did not verify. Send a verification OTP.
+        import random
+        otp = f"{random.randint(100000, 999999)}"
+        user.otp = otp
+        user.otp_expiry = datetime.utcnow() + timedelta(minutes=10)
+        db.session.commit()
+
+        print(f"\n=======================================================")
+        print(f"[OTP EMAIL SIMULATION] To: {user.email}")
+        print(f"Subject: Verify your iCompaas account")
+        print(f"Body: Your registration verification code is: {otp}")
+        print(f"=======================================================\n")
+
+        return jsonify({
+            'message': 'Your account email is unverified. Verification OTP sent to your email.',
+            'email': user.email,
+            'is_verified': False,
+            'require_registration_verification': True
+        }), 200
+
+    # User is verified - trigger 2FA OTP
+    import random
+    otp = f"{random.randint(100000, 999999)}"
+    user.otp = otp
+    user.otp_expiry = datetime.utcnow() + timedelta(minutes=10)
+    db.session.commit()
+
+    print(f"\n=======================================================")
+    print(f"[OTP EMAIL SIMULATION] To: {user.email}")
+    print(f"Subject: iCompaas Two-Factor Authentication (2FA) OTP")
+    print(f"Body: Hello {user.username}, your 2FA verification code is: {otp}")
+    print(f"=======================================================\n")
+
+    return jsonify({
+        'message': '2FA OTP sent to email.',
+        'email': user.email,
+        'two_factor_required': True
+    }), 200
+
+@app.route('/api/auth/verify-registration-otp', methods=['POST'])
+def verify_registration_otp():
+    data = request.get_json()
+    if not data or not data.get('email') or not data.get('otp'):
+        return jsonify({'message': 'Email and OTP are required.'}), 400
+
+    user = User.query.filter_by(email=data['email']).first()
+    if not user:
+        return jsonify({'message': 'User not found.'}), 404
+
+    if user.is_verified:
+        return jsonify({'message': 'Email already verified.'}), 400
+
+    if not user.otp or user.otp != data['otp']:
+        return jsonify({'message': 'Invalid verification code.'}), 400
+
+    if user.otp_expiry and user.otp_expiry < datetime.utcnow():
+        return jsonify({'message': 'Verification code has expired.'}), 400
+
+    # Verification successful!
+    user.is_verified = True
+    user.otp = None
+    user.otp_expiry = None
+    db.session.commit()
+
+    # Create default workspace for this user
+    default_ws = Workspace.query.filter_by(created_by=user.id).first()
+    if not default_ws:
+        default_ws = Workspace(
+            name=f"{user.username}'s Workspace",
+            description="Auto-generated default workspace",
+            created_by=user.id
+        )
+        db.session.add(default_ws)
+        db.session.commit()
+
+        member_assoc = WorkspaceMember(workspace_id=default_ws.id, user_id=user.id, role='admin')
+        db.session.add(member_assoc)
+        db.session.commit()
+    else:
+        member_assoc = WorkspaceMember.query.filter_by(workspace_id=default_ws.id, user_id=user.id).first()
+        if not member_assoc:
+            member_assoc = WorkspaceMember(workspace_id=default_ws.id, user_id=user.id, role='admin')
+            db.session.add(member_assoc)
+            db.session.commit()
+
+    token = generate_token(user.id)
+    return jsonify({
+        'message': 'Registration and email verification successful.',
+        'token': token,
+        'user': user.to_dict(),
+        'default_workspace_id': default_ws.id
+    }), 200
+
+@app.route('/api/auth/verify-login-otp', methods=['POST'])
+def verify_login_otp():
+    data = request.get_json()
+    if not data or not data.get('email') or not data.get('otp'):
+        return jsonify({'message': 'Email and OTP are required.'}), 400
+
+    user = User.query.filter_by(email=data['email']).first()
+    if not user:
+        return jsonify({'message': 'User not found.'}), 404
+
+    if not user.is_verified:
+        return jsonify({'message': 'Email not verified. Please complete registration verification.'}), 400
+
+    if not user.otp or user.otp != data['otp']:
+        return jsonify({'message': 'Invalid verification code.'}), 400
+
+    if user.otp_expiry and user.otp_expiry < datetime.utcnow():
+        return jsonify({'message': 'Verification code has expired.'}), 400
+
+    # Verification successful!
+    user.otp = None
+    user.otp_expiry = None
+    db.session.commit()
+
     token = generate_token(user.id)
     return jsonify({
         'message': 'Login successful.',
         'token': token,
         'user': user.to_dict()
+    }), 200
+
+@app.route('/api/auth/resend-otp', methods=['POST'])
+def resend_otp():
+    data = request.get_json()
+    if not data or not data.get('email'):
+        return jsonify({'message': 'Email is required.'}), 400
+
+    user = User.query.filter_by(email=data['email']).first()
+    if not user:
+        return jsonify({'message': 'User not found.'}), 404
+
+    import random
+    otp = f"{random.randint(100000, 999999)}"
+    user.otp = otp
+    user.otp_expiry = datetime.utcnow() + timedelta(minutes=10)
+    db.session.commit()
+
+    print(f"\n=======================================================")
+    print(f"[OTP EMAIL SIMULATION] To: {user.email}")
+    print(f"Subject: Resend iCompaas Verification Code")
+    print(f"Body: Your verification code is: {otp}")
+    print(f"=======================================================\n")
+
+    return jsonify({
+        'message': 'Verification code resent successfully.',
+        'email': user.email
     }), 200
 
 @app.route('/api/auth/profile', methods=['GET', 'PUT'])

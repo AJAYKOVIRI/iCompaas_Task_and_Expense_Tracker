@@ -22,6 +22,9 @@ class User(db.Model):
     role = db.Column(db.String(20), default='user')  # 'admin' or 'user' (system-wide role)
     profile_pic = db.Column(db.String(255), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    otp = db.Column(db.String(10), nullable=True)
+    otp_expiry = db.Column(db.DateTime, nullable=True)
+    is_verified = db.Column(db.Boolean, default=False)
 
     # Relationships
     created_workspaces = db.relationship('Workspace', back_populates='creator', foreign_keys='Workspace.created_by', cascade="all, delete-orphan")
@@ -45,6 +48,7 @@ class User(db.Model):
             'email': self.email,
             'role': self.role,
             'profile_pic': self.profile_pic,
+            'is_verified': self.is_verified,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
 
