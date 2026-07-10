@@ -117,10 +117,7 @@ const Login = () => {
               <div className="auth-header">
                 <img src="/logo.png" alt="iCompaas Logo" style={{ height: '64px', marginBottom: '1rem', objectFit: 'contain' }} />
                 <h1>{otpType === 'register' ? 'Verify Email' : 'Two-Factor Authentication'}</h1>
-                <p>We've simulated sending a code to <strong>{email}</strong></p>
-                <div style={{ marginTop: '0.75rem', fontSize: '0.85rem', color: 'var(--warning)', background: 'var(--warning-bg, rgba(230, 162, 44, 0.1))', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid rgba(230, 162, 44, 0.2)' }}>
-                  💡 <em>Note: Check the backend Python stdout console to find the OTP code.</em>
-                </div>
+                <p>We've sent a verification code to <strong>{email}</strong></p>
               </div>
 
               {message && (
