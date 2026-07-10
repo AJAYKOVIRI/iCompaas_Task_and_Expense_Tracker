@@ -23,22 +23,31 @@ db.init_app(app)
 
 with app.app_context():
     db.create_all()
-    # Migration helper to dynamically add columns to existing SQLite database users table if they don't exist
+    # Migration helper to dynamically add columns to existing users table if they don't exist (supports SQLite & PostgreSQL)
     try:
-        db.session.execute(db.text("ALTER TABLE users ADD COLUMN otp VARCHAR(10)"))
-        db.session.commit()
-    except Exception:
+        inspector = db.inspect(db.engine)
+        columns = [c['name'] for c in inspector.get_columns('users')]
+        is_postgres = db.engine.name == 'postgresql'
+
+        if 'otp' not in columns:
+            db.session.execute(db.text("ALTER TABLE users ADD COLUMN otp VARCHAR(10)"))
+            db.session.commit()
+            print("Migration: Added 'otp' column to users table.")
+        
+        if 'otp_expiry' not in columns:
+            type_str = "TIMESTAMP" if is_postgres else "DATETIME"
+            db.session.execute(db.text(f"ALTER TABLE users ADD COLUMN otp_expiry {type_str}"))
+            db.session.commit()
+            print(f"Migration: Added 'otp_expiry' ({type_str}) column to users table.")
+
+        if 'is_verified' not in columns:
+            default_val = "FALSE" if is_postgres else "0"
+            db.session.execute(db.text(f"ALTER TABLE users ADD COLUMN is_verified BOOLEAN DEFAULT {default_val}"))
+            db.session.commit()
+            print(f"Migration: Added 'is_verified' column to users table.")
+    except Exception as e:
         db.session.rollback()
-    try:
-        db.session.execute(db.text("ALTER TABLE users ADD COLUMN otp_expiry DATETIME"))
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
-    try:
-        db.session.execute(db.text("ALTER TABLE users ADD COLUMN is_verified BOOLEAN DEFAULT 0"))
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
+        print(f"Database migration check error: {e}")
 
     # Create default admin user if not exists
     admin_user = User.query.filter_by(role='admin').first()
