@@ -213,6 +213,10 @@ def register():
     if not data or not data.get('username') or not data.get('email') or not data.get('password'):
         return jsonify({'message': 'Username, email, and password are required.'}), 400
     
+    # Determine role based on email domain
+    email_lower = data['email'].lower()
+    role = 'admin' if email_lower.endswith('@icompaas.in') else 'user'
+
     # Check if user already exists
     existing_user = User.query.filter_by(email=data['email']).first()
     if existing_user:
@@ -222,7 +226,7 @@ def register():
             # Overwrite unverified user to prevent locking out email/username
             user = existing_user
             user.username = data['username']
-            user.role = data.get('role', 'user')
+            user.role = role
     else:
         user = None
 
@@ -241,7 +245,7 @@ def register():
         user = User(
             username=data['username'],
             email=data['email'],
-            role=data.get('role', 'user')
+            role=role
         )
 
     user.set_password(data['password'])

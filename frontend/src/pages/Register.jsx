@@ -10,7 +10,6 @@ const Register = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [role, setRole] = useState('user'); // Default to 'user'
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [requireOtp, setRequireOtp] = useState(false);
@@ -38,8 +37,7 @@ const Register = () => {
       const res = await axios.post('/api/auth/register', {
         username,
         email,
-        password,
-        role
+        password
       });
       setRequireOtp(true);
       setMessage(res.data.message || 'Verification OTP sent to your email. Check backend terminal for code.');
@@ -259,20 +257,6 @@ const Register = () => {
                   disabled={loading}
                   required
                 />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="role">Role (Testing Feature)</label>
-                <select
-                  id="role"
-                  className="form-control"
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                  disabled={loading}
-                >
-                  <option value="user">Regular User (Member)</option>
-                  <option value="admin">System Admin</option>
-                </select>
               </div>
 
               <button
