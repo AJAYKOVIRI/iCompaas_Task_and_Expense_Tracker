@@ -15,8 +15,8 @@ class Config:
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'doc', 'docx', 'xls', 'xlsx'}
     
     # SMTP Mail Configurations
-    MAIL_SERVER = os.environ.get('MAIL_SERVER', '')
+    MAIL_SERVER = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
     MAIL_PORT = os.environ.get('MAIL_PORT', '587')
-    MAIL_USERNAME = os.environ.get('MAIL_USERNAME', '')
-    MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD', '')
+    MAIL_USERNAME = os.environ.get('MAIL_USERNAME', 'icompaasdemo@gmail.com')
+    MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD', 'vygkirtoagcekufu')
     MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER', '')

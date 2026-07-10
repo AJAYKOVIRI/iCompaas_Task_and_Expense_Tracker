@@ -117,8 +117,13 @@ def save_and_print_otp(user, otp, type_str):
         print(f"Error writing OTP to file: {e}")
 
     # Attempt to send real email
+    import time
+    # Append a timestamp to the subject line to prevent Gmail spam filters from grouping/blocking identical emails
+    timestamp = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
+    subject_unique = f"{type_str} [Ref: {timestamp}]"
+    
     email_body = f"Hello {user.username},\n\nYour OTP verification code is: {otp}\n\nThis code will expire in 10 minutes."
-    send_real_email(user.email, type_str, email_body)
+    send_real_email(user.email, subject_unique, email_body)
 
 def generate_token(user_id):
     import jwt
