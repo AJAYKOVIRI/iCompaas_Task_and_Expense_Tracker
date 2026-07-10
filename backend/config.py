@@ -14,9 +14,9 @@ class Config:
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max upload size
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'doc', 'docx', 'xls', 'xlsx'}
     
-    # SMTP Mail Configurations
-    MAIL_SERVER = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
+    # SMTP Mail Configurations (Defaulting to SendGrid)
+    MAIL_SERVER = os.environ.get('MAIL_SERVER', 'smtp.sendgrid.net')
     MAIL_PORT = os.environ.get('MAIL_PORT', '587')
-    MAIL_USERNAME = os.environ.get('MAIL_USERNAME', 'icompaasdemo@gmail.com')
-    MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD', 'vygkirtoagcekufu')
-    MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER', '')
+    MAIL_USERNAME = os.environ.get('MAIL_USERNAME', 'apikey')
+    MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD', '')
+    MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER', 'no-reply@icompaas.in')
