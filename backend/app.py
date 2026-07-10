@@ -106,6 +106,10 @@ def send_real_email(recipient_email, subject, body):
         print(f"[SMTP ERROR] Failed to send email to {recipient_email}: {e}")
         return False
 
+def send_real_email_with_context(app_context, recipient_email, subject, body):
+    with app_context:
+        send_real_email(recipient_email, subject, body)
+
 def save_and_print_otp(user, otp, type_str):
     import os
     # Print to backend console log
@@ -125,14 +129,21 @@ def save_and_print_otp(user, otp, type_str):
     except Exception as e:
         print(f"Error writing OTP to file: {e}")
 
-    # Attempt to send real email
+    # Attempt to send real email asynchronously
     import time
+    import threading
     # Append a timestamp to the subject line to prevent Gmail spam filters from grouping/blocking identical emails
     timestamp = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
     subject_unique = f"{type_str} [Ref: {timestamp}]"
     
     email_body = f"Hello {user.username},\n\nYour OTP verification code is: {otp}\n\nThis code will expire in 10 minutes."
-    send_real_email(user.email, subject_unique, email_body)
+    
+    app_context = app.app_context()
+    thread = threading.Thread(
+        target=send_real_email_with_context,
+        args=(app_context, user.email, subject_unique, email_body)
+    )
+    thread.start()
 
 def generate_token(user_id):
     import jwt
