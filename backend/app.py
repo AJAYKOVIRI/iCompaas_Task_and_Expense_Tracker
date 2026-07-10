@@ -56,6 +56,47 @@ with app.app_context():
 
 # --- Utility Helpers ---
 
+def send_real_email(recipient_email, subject, body):
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.header import Header
+
+    mail_server = app.config.get('MAIL_SERVER')
+    mail_port = app.config.get('MAIL_PORT')
+    mail_username = app.config.get('MAIL_USERNAME')
+    mail_password = app.config.get('MAIL_PASSWORD')
+    mail_sender = app.config.get('MAIL_DEFAULT_SENDER') or mail_username
+
+    if not mail_server or not mail_username or not mail_password:
+        print("[SMTP WARNING] Mail configurations (MAIL_SERVER, MAIL_USERNAME, MAIL_PASSWORD) are missing. Email not sent, falling back to simulated output.")
+        return False
+
+    try:
+        msg = MIMEText(body, 'plain', 'utf-8')
+        msg['Subject'] = Header(subject, 'utf-8')
+        msg['From'] = mail_sender
+        msg['To'] = recipient_email
+
+        # Connect and send
+        # If port is 465, use SMTP_SSL, otherwise use standard SMTP with STARTTLS
+        port = int(mail_port) if mail_port else 587
+        if port == 465:
+            server = smtplib.SMTP_SSL(mail_server, port, timeout=10)
+        else:
+            server = smtplib.SMTP(mail_server, port, timeout=10)
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
+
+        server.login(mail_username, mail_password)
+        server.sendmail(mail_sender, [recipient_email], msg.as_string())
+        server.quit()
+        print(f"[SMTP SUCCESS] Sent email to {recipient_email}")
+        return True
+    except Exception as e:
+        print(f"[SMTP ERROR] Failed to send email to {recipient_email}: {e}")
+        return False
+
 def save_and_print_otp(user, otp, type_str):
     import os
     # Print to backend console log
@@ -74,6 +115,10 @@ def save_and_print_otp(user, otp, type_str):
         print(f"Saved latest OTP to {otp_file_path}")
     except Exception as e:
         print(f"Error writing OTP to file: {e}")
+
+    # Attempt to send real email
+    email_body = f"Hello {user.username},\n\nYour OTP verification code is: {otp}\n\nThis code will expire in 10 minutes."
+    send_real_email(user.email, type_str, email_body)
 
 def generate_token(user_id):
     import jwt
