@@ -223,15 +223,20 @@ const Login = () => {
                   disabled={loading}
                   required
                 />
-                <div style={{ display: 'flex', alignItems: 'center', marginTop: '0.5rem', gap: '0.5rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                  <input
-                    type="checkbox"
-                    id="show-password"
-                    checked={showPassword}
-                    onChange={(e) => setShowPassword(e.target.checked)}
-                    style={{ cursor: 'pointer' }}
-                  />
-                  <label htmlFor="show-password" style={{ margin: 0, cursor: 'pointer', userSelect: 'none' }}>Show Password</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem', fontSize: '0.85rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)' }}>
+                    <input
+                      type="checkbox"
+                      id="show-password"
+                      checked={showPassword}
+                      onChange={(e) => setShowPassword(e.target.checked)}
+                      style={{ cursor: 'pointer' }}
+                    />
+                    <label htmlFor="show-password" style={{ margin: 0, cursor: 'pointer', userSelect: 'none' }}>Show Password</label>
+                  </div>
+                  <Link to="/forgot-password" style={{ color: 'var(--accent-color)', textDecoration: 'none', fontWeight: '500' }}>
+                    Forgot Password?
+                  </Link>
                 </div>
               </div>
 

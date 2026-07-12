@@ -444,6 +444,54 @@ def resend_otp():
         'email': user.email
     }), 200
 
+@app.route('/api/auth/forgot-password', methods=['POST'])
+def forgot_password():
+    data = request.get_json()
+    if not data or not data.get('email'):
+        return jsonify({'message': 'Email is required.'}), 400
+
+    user = User.query.filter_by(email=data['email']).first()
+    
+    # Generic message to protect email privacy (security best practice)
+    success_message = 'If an account exists with that email, a password reset code has been sent.'
+    
+    if not user:
+        return jsonify({'message': success_message}), 200
+
+    import random
+    otp = f"{random.randint(100000, 999999)}"
+    user.otp = otp
+    user.otp_expiry = datetime.utcnow() + timedelta(minutes=10)
+    db.session.commit()
+
+    save_and_print_otp(user, otp, "Reset your iCompaas Password")
+
+    return jsonify({'message': success_message}), 200
+
+@app.route('/api/auth/reset-password', methods=['POST'])
+def reset_password():
+    data = request.get_json()
+    if not data or not data.get('email') or not data.get('otp') or not data.get('password'):
+        return jsonify({'message': 'Email, verification code (OTP), and new password are required.'}), 400
+
+    user = User.query.filter_by(email=data['email']).first()
+    if not user:
+        return jsonify({'message': 'User not found.'}), 404
+
+    if not user.otp or user.otp != data['otp']:
+        return jsonify({'message': 'Invalid verification code.'}), 400
+
+    if user.otp_expiry and user.otp_expiry < datetime.utcnow():
+        return jsonify({'message': 'Verification code has expired.'}), 400
+
+    # Reset password and clear OTP
+    user.set_password(data['password'])
+    user.otp = None
+    user.otp_expiry = None
+    db.session.commit()
+
+    return jsonify({'message': 'Password has been reset successfully.'}), 200
+
 @app.route('/api/auth/profile', methods=['GET', 'PUT'])
 @token_required
 def profile(current_user):
