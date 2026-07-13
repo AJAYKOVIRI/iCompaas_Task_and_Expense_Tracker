@@ -321,19 +321,12 @@ def login():
             'require_registration_verification': True
         }), 200
 
-    # User is verified - trigger 2FA OTP
-    import random
-    otp = f"{random.randint(100000, 999999)}"
-    user.otp = otp
-    user.otp_expiry = datetime.utcnow() + timedelta(minutes=10)
-    db.session.commit()
-
-    save_and_print_otp(user, otp, "iCompaas Two-Factor Authentication (2FA) OTP")
-
+    # User is verified - log in immediately without 2FA
+    token = generate_token(user.id)
     return jsonify({
-        'message': '2FA OTP sent to email.',
-        'email': user.email,
-        'two_factor_required': True
+        'message': 'Login successful.',
+        'token': token,
+        'user': user.to_dict()
     }), 200
 
 @app.route('/api/auth/verify-registration-otp', methods=['POST'])
@@ -390,36 +383,7 @@ def verify_registration_otp():
         'default_workspace_id': default_ws.id
     }), 200
 
-@app.route('/api/auth/verify-login-otp', methods=['POST'])
-def verify_login_otp():
-    data = request.get_json()
-    if not data or not data.get('email') or not data.get('otp'):
-        return jsonify({'message': 'Email and OTP are required.'}), 400
 
-    user = User.query.filter_by(email=data['email']).first()
-    if not user:
-        return jsonify({'message': 'User not found.'}), 404
-
-    if not user.is_verified:
-        return jsonify({'message': 'Email not verified. Please complete registration verification.'}), 400
-
-    if not user.otp or user.otp != data['otp']:
-        return jsonify({'message': 'Invalid verification code.'}), 400
-
-    if user.otp_expiry and user.otp_expiry < datetime.utcnow():
-        return jsonify({'message': 'Verification code has expired.'}), 400
-
-    # Verification successful!
-    user.otp = None
-    user.otp_expiry = None
-    db.session.commit()
-
-    token = generate_token(user.id)
-    return jsonify({
-        'message': 'Login successful.',
-        'token': token,
-        'user': user.to_dict()
-    }), 200
 
 @app.route('/api/auth/resend-otp', methods=['POST'])
 def resend_otp():

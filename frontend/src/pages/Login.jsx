@@ -13,7 +13,6 @@ const Login = () => {
   const [requireOtp, setRequireOtp] = useState(false);
   const [otp, setOtp] = useState('');
   const [message, setMessage] = useState('');
-  const [otpType, setOtpType] = useState('login'); // 'login' or 'register'
 
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -31,16 +30,10 @@ const Login = () => {
     try {
       const res = await axios.post('/api/auth/login', { email, password });
       
-      if (res.data.two_factor_required) {
-        setOtpType('login');
-        setRequireOtp(true);
-        setMessage(res.data.message || '2FA OTP verification code sent to your email. Check backend terminal.');
-      } else if (res.data.require_registration_verification) {
-        setOtpType('register');
+      if (res.data.require_registration_verification) {
         setRequireOtp(true);
         setMessage(res.data.message || 'Your email is unverified. Verification OTP code sent to your email. Check backend terminal.');
       } else {
-        // Direct login if 2FA was not triggered for some reason (should be triggered, but fallback)
         login(res.data.token, res.data.user);
         navigate('/');
       }
@@ -62,12 +55,8 @@ const Login = () => {
     setError('');
     setLoading(true);
 
-    const verifyUrl = otpType === 'register' 
-      ? '/api/auth/verify-registration-otp' 
-      : '/api/auth/verify-login-otp';
-
     try {
-      const res = await axios.post(verifyUrl, {
+      const res = await axios.post('/api/auth/verify-registration-otp', {
         email,
         otp
       });
@@ -106,7 +95,7 @@ const Login = () => {
             {requireOtp ? 'Verifying OTP' : 'Signing In'}
           </h2>
           <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-            {requireOtp ? 'Verifying 2-Factor Authentication code...' : 'Verifying credentials...'}
+            {requireOtp ? 'Verifying registration code...' : 'Verifying credentials...'}
           </p>
         </div>
       )}
@@ -116,7 +105,7 @@ const Login = () => {
             <form onSubmit={handleVerifyOtp}>
               <div className="auth-header">
                 <img src="/logo.png" alt="iCompaas Logo" style={{ height: '64px', marginBottom: '1rem', objectFit: 'contain' }} />
-                <h1>{otpType === 'register' ? 'Verify Email' : 'Two-Factor Authentication'}</h1>
+                <h1>Verify Email</h1>
                 <p>We've sent a verification code to <strong>{email}</strong></p>
               </div>
 
